@@ -2,180 +2,197 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cry vs Shout: The Weekly Run</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     body {
-      font-family: 'Comic Sans MS', sans-serif;
-      background: #fef9f6;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f8;
+      color: #333;
+    }
+    .container {
+      padding: 1rem;
+      max-width: 500px;
+      margin: auto;
+    }
+    .hide {
+      display: none;
+    }
+    h1, h2 {
       text-align: center;
-      padding: 20px;
     }
-
-    .title {
-      font-size: 2rem;
-      margin-bottom: 20px;
+    .login-form, .app {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
-
-    .totals img {
-      width: 40px;
-      vertical-align: middle;
+    input, button {
+      padding: 0.8rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
     }
-
-    .button-row button {
-      font-size: 1.5rem;
-      padding: 10px 20px;
-      margin: 10px;
-      cursor: pointer;
+    .btn-group {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 1rem;
     }
-
-    .log {
-      margin-top: 30px;
+    .btn-icon {
+      width: 100px;
+      height: 100px;
+      background: none;
+      border: none;
     }
-
-    .hourly {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 5px;
-      margin-top: 10px;
+    .btn-icon img {
+      width: 100%;
+      height: auto;
     }
-
-    .bar {
-      height: 20px;
-      border-radius: 4px;
+    .tally {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 2rem;
+      font-size: 1.2rem;
     }
-
-    #login-section {
-      margin-bottom: 20px;
+    .log-list {
+      margin-top: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    .timestamp {
+      color: #777;
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div id="login" class="login-form">
+      <h1>Cry vs Shout</h1>
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="handleLogin()">Login / Sign Up</button>
+    </div>
 
-  <div id="login-section">
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="signIn()">Login</button>
-    <button onclick="signUp()">Sign Up</button>
-    <button onclick="signOut()">Logout</button>
+    <div id="app" class="app hide">
+      <h2>The Weekly Run</h2>
+      <div class="tally">
+        <div><img src="cry_icon.png" width="24"> <span id="cry-count">0</span></div>
+        <div><img src="shout_icon.png" width="24"> <span id="shout-count">0</span></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn-icon" onclick="logEvent('cry')">
+          <img src="cry_icon.png" alt="Cry" />
+        </button>
+        <button class="btn-icon" onclick="logEvent('shout')">
+          <img src="shout_icon.png" alt="Shout" />
+        </button>
+      </div>
+      <h3>Today’s Log</h3>
+      <div class="log-list" id="log-list"></div>
+      <button onclick="logout()">Logout</button>
+    </div>
   </div>
 
-  <div class="title">Cry vs Shout: The Weekly Run</div>
+  <script>
+    const SUPABASE_URL = "https://bbeummehrwczxuwufejk.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXVtbWVocndjenh1d3VmZWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNDQzNjcsImV4cCI6MjA2OTcyMDM2N30.MOcvwbf1R4ZqPi83WJHKvBLYFpb0k42cmRGdYWkOeh8";
 
-  <div id="totals" class="totals"></div>
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  <div class="button-row">
-    <button onclick="addEntry('cry')">
-      <img src="cry_icon.png" alt="Cry" width="40" />
-    </button>
-    <button onclick="addEntry('shout')">
-      <img src="shout_icon.png" alt="Shout" width="40" />
-    </button>
-  </div>
+    const loginDiv = document.getElementById('login');
+    const appDiv = document.getElementById('app');
+    const cryCountEl = document.getElementById('cry-count');
+    const shoutCountEl = document.getElementById('shout-count');
+    const logListEl = document.getElementById('log-list');
 
-  <div class="log">
-    <h3>This Week's Hourly Log</h3>
-    <div id="hourly-cry" class="hourly"></div>
-    <div id="hourly-shout" class="hourly"></div>
-  </div>
+    async function handleLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-<script>
-  const supabase = supabase.createClient(
-    "https://bbeummehrwczxuwufejk.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXVtbWVocndjenh1d3VmZWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNDQzNjcsImV4cCI6MjA2OTcyMDM2N30.MOcvwbf1R4ZqPi83WJHKvBLYFpb0k42cmRGdYWkOeh8"
-  );
+      if (error) {
+        // Try signup
+        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) return alert('Login/Signup failed');
+      }
 
-  let currentUser = null;
-
-  async function signIn() {
-    const { error, data } = await supabase.auth.signInWithPassword({
-      email: document.getElementById('email').value,
-      password: document.getElementById('password').value
-    });
-    if (error) alert(error.message);
-    else {
-      currentUser = data.user;
+      loginDiv.classList.add('hide');
+      appDiv.classList.remove('hide');
       loadData();
     }
-  }
 
-  async function signUp() {
-    const { error, data } = await supabase.auth.signUp({
-      email: document.getElementById('email').value,
-      password: document.getElementById('password').value
+    async function logout() {
+      await supabase.auth.signOut();
+      location.reload();
+    }
+
+    async function loadData() {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("cry_shout_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte('timestamp', getWeekStartISO());
+
+      if (error) return console.error(error);
+
+      const cryCount = data.filter(d => d.type === 'cry').length;
+      const shoutCount = data.filter(d => d.type === 'shout').length;
+
+      cryCountEl.textContent = cryCount;
+      shoutCountEl.textContent = shoutCount;
+
+      // Show today's logs
+      const today = new Date().toISOString().split("T")[0];
+      const todayLogs = data
+        .filter(d => d.timestamp.startsWith(today))
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      logListEl.innerHTML = todayLogs.map(log => `
+        <div>
+          <strong>${log.type.toUpperCase()}</strong> - 
+          <span class="timestamp">${new Date(log.timestamp).toLocaleTimeString()}</span>
+        </div>
+      `).join('');
+    }
+
+    async function logEvent(type) {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.from("cry_shout_logs").insert({
+        user_id: user.id,
+        type
+      });
+      if (!error) loadData();
+    }
+
+    function getWeekStartISO() {
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun, 1=Mon...
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // start from Mon
+      const weekStart = new Date(now.setDate(diff));
+      weekStart.setHours(0, 0, 0, 0);
+      return weekStart.toISOString();
+    }
+
+    // Auto-login if already signed in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        loginDiv.classList.add('hide');
+        appDiv.classList.remove('hide');
+        loadData();
+      }
     });
-    if (error) alert(error.message);
-    else alert("Check your email to confirm signup!");
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    currentUser = null;
-    document.getElementById("totals").innerHTML = "";
-  }
-
-  async function addEntry(type) {
-    if (!currentUser) {
-      alert("Please login first!");
-      return;
-    }
-    await supabase.from("cry_shout_log").insert({
-      type,
-      user_id: currentUser.id
-    });
-    loadData();
-  }
-
-  async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    currentUser = user;
-
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const { data, error } = await supabase
-      .from("cry_shout_log")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("timestamp", startOfWeek.toISOString());
-
-    if (error) {
-      alert("Error loading data");
-      return;
-    }
-
-    const counts = { cry: 0, shout: 0 };
-    const hours = Array(24).fill(0).map(() => ({ cry: 0, shout: 0 }));
-
-    for (const row of data) {
-      counts[row.type]++;
-      const hour = new Date(row.timestamp).getHours();
-      hours[hour][row.type]++;
-    }
-
-    document.getElementById("totals").innerHTML = `
-      <div><img src="cry_icon.png" /> ${counts.cry}</div>
-      <div><img src="shout_icon.png" /> ${counts.shout}</div>
-    `;
-
-    // Hourly bar chart
-    const cryBar = hours.map(h => `<div class="bar" style="background:blue;width:${h.cry * 10}px"></div>`).join("");
-    const shoutBar = hours.map(h => `<div class="bar" style="background:red;width:${h.shout * 10}px"></div>`).join("");
-
-    document.getElementById("hourly-cry").innerHTML = cryBar;
-    document.getElementById("hourly-shout").innerHTML = shoutBar;
-  }
-
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      currentUser = session.user;
-      loadData();
-    }
-  });
-</script>
+  </script>
 </body>
 </html>
