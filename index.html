@@ -94,8 +94,8 @@
 
   <script>
     // Replace with your own Supabase project URL and anon key:
-    const SUPABASE_URL = 'https://your-project-id.supabase.co';
-    const SUPABASE_ANON_KEY = 'your-anon-key';
+    const SUPABASE_URL = 'postgresql://postgres:rassnook@db.bbeummehrwczxuwufejk.supabase.co:5432/postgres';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXVtbWVocndjenh1d3VmZWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNDQzNjcsImV4cCI6MjA2OTcyMDM2N30.MOcvwbf1R4ZqPi83WJHKvBLYFpb0k42cmRGdYWkOeh8';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function logEvent(type) {
