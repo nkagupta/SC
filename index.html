@@ -2,158 +2,180 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TearMeter 9000</title>
+  <title>Cry vs Shout: The Weekly Run</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     body {
-      font-family: "Comic Sans MS", sans-serif;
-      background: #fef7ff;
+      font-family: 'Comic Sans MS', sans-serif;
+      background: #fef9f6;
       text-align: center;
       padding: 20px;
-      color: #333;
     }
-    #login-section, #app-section {
-      display: none;
-    }
-    img.icon {
-      height: 40px;
-      vertical-align: middle;
-      margin-right: 10px;
-    }
-    .totals {
-      font-size: 24px;
+
+    .title {
+      font-size: 2rem;
       margin-bottom: 20px;
     }
-    .button {
-      font-size: 18px;
+
+    .totals img {
+      width: 40px;
+      vertical-align: middle;
+    }
+
+    .button-row button {
+      font-size: 1.5rem;
       padding: 10px 20px;
       margin: 10px;
-      border-radius: 8px;
       cursor: pointer;
-      border: none;
-      color: white;
     }
-    .cry-btn { background-color: #4ea8de; }
-    .shout-btn { background-color: #f44336; }
-    .bar-container {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
+
+    .log {
       margin-top: 30px;
     }
+
+    .hourly {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 5px;
+      margin-top: 10px;
+    }
+
     .bar {
-      width: 20px;
+      height: 20px;
       border-radius: 4px;
     }
-    .hour-label {
-      font-size: 12px;
+
+    #login-section {
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>TearMeter 9000</h1>
 
   <div id="login-section">
-    <input type="email" id="email" placeholder="Enter email" />
-    <button onclick="login()">Login</button>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="signIn()">Login</button>
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="signOut()">Logout</button>
   </div>
 
-  <div id="app-section">
-    <div class="totals">
-      <div>
-        <img src="cry_icon.png" class="icon" alt="Cry" /> <span id="cry-count">0</span>
-        <img src="shout_icon.png" class="icon" alt="Shout" /> <span id="shout-count">0</span>
-      </div>
-    </div>
+  <div class="title">Cry vs Shout: The Weekly Run</div>
 
-    <div>
-      <button class="button cry-btn" onclick="logEvent('cry')">Add Cry</button>
-      <button class="button shout-btn" onclick="logEvent('shout')">Add Shout</button>
-    </div>
+  <div id="totals" class="totals"></div>
 
-    <div id="bar-chart" class="bar-container"></div>
+  <div class="button-row">
+    <button onclick="addEntry('cry')">
+      <img src="cry_icon.png" alt="Cry" width="40" />
+    </button>
+    <button onclick="addEntry('shout')">
+      <img src="shout_icon.png" alt="Shout" width="40" />
+    </button>
   </div>
 
-  <script>
-    const SUPABASE_URL = 'https://bbeummehrwczxuwufejk.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXVtbWVocndjenh1d3VmZWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNDQzNjcsImV4cCI6MjA2OTcyMDM2N30.MOcvwbf1R4ZqPi83WJHKvBLYFpb0k42cmRGdYWkOeh8';
+  <div class="log">
+    <h3>This Week's Hourly Log</h3>
+    <div id="hourly-cry" class="hourly"></div>
+    <div id="hourly-shout" class="hourly"></div>
+  </div>
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentUser = null;
+<script>
+  const supabase = supabase.createClient(
+    "https://bbeummehrwczxuwufejk.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXVtbWVocndjenh1d3VmZWprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNDQzNjcsImV4cCI6MjA2OTcyMDM2N30.MOcvwbf1R4ZqPi83WJHKvBLYFpb0k42cmRGdYWkOeh8"
+  );
 
-    async function login() {
-      const email = document.getElementById('email').value;
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      alert(error ? error.message : 'Check your email for the magic link!');
-    }
+  let currentUser = null;
 
-    supabase.auth.onAuthStateChange(async (_, session) => {
-      if (session?.user) {
-        currentUser = session.user;
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('app-section').style.display = 'block';
-        loadCounts();
-        loadHourly();
-      }
+  async function signIn() {
+    const { error, data } = await supabase.auth.signInWithPassword({
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value
     });
+    if (error) alert(error.message);
+    else {
+      currentUser = data.user;
+      loadData();
+    }
+  }
 
-    async function logEvent(type) {
-      if (!currentUser) return;
-      const { error } = await supabase.from('events').insert([
-        { type, user_id: currentUser.id, timestamp: new Date().toISOString() }
-      ]);
-      if (error) alert(error.message);
-      else {
-        loadCounts();
-        loadHourly();
-      }
+  async function signUp() {
+    const { error, data } = await supabase.auth.signUp({
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value
+    });
+    if (error) alert(error.message);
+    else alert("Check your email to confirm signup!");
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    currentUser = null;
+    document.getElementById("totals").innerHTML = "";
+  }
+
+  async function addEntry(type) {
+    if (!currentUser) {
+      alert("Please login first!");
+      return;
+    }
+    await supabase.from("cry_shout_log").insert({
+      type,
+      user_id: currentUser.id
+    });
+    loadData();
+  }
+
+  async function loadData() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    currentUser = user;
+
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+      .from("cry_shout_log")
+      .select("*")
+      .eq("user_id", user.id)
+      .gte("timestamp", startOfWeek.toISOString());
+
+    if (error) {
+      alert("Error loading data");
+      return;
     }
 
-    async function loadCounts() {
-      const startOfWeek = new Date();
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
-      startOfWeek.setHours(0, 0, 0, 0);
-      const { data } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .gte('timestamp', startOfWeek.toISOString());
+    const counts = { cry: 0, shout: 0 };
+    const hours = Array(24).fill(0).map(() => ({ cry: 0, shout: 0 }));
 
-      const cries = data.filter(e => e.type === 'cry').length;
-      const shouts = data.filter(e => e.type === 'shout').length;
-      document.getElementById('cry-count').textContent = cries;
-      document.getElementById('shout-count').textContent = shouts;
+    for (const row of data) {
+      counts[row.type]++;
+      const hour = new Date(row.timestamp).getHours();
+      hours[hour][row.type]++;
     }
 
-    async function loadHourly() {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { data } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .gte('timestamp', today.toISOString());
+    document.getElementById("totals").innerHTML = `
+      <div><img src="cry_icon.png" /> ${counts.cry}</div>
+      <div><img src="shout_icon.png" /> ${counts.shout}</div>
+    `;
 
-      const hourly = Array(24).fill({ cry: 0, shout: 0 });
-      data.forEach(e => {
-        const hour = new Date(e.timestamp).getHours();
-        if (e.type === 'cry') hourly[hour] = { ...hourly[hour], cry: (hourly[hour].cry || 0) + 1 };
-        if (e.type === 'shout') hourly[hour] = { ...hourly[hour], shout: (hourly[hour].shout || 0) + 1 };
-      });
+    // Hourly bar chart
+    const cryBar = hours.map(h => `<div class="bar" style="background:blue;width:${h.cry * 10}px"></div>`).join("");
+    const shoutBar = hours.map(h => `<div class="bar" style="background:red;width:${h.shout * 10}px"></div>`).join("");
 
-      const chart = document.getElementById('bar-chart');
-      chart.innerHTML = '';
-      hourly.forEach((h, i) => {
-        const div = document.createElement('div');
-        div.innerHTML = `
-          <div style="height:${h.cry * 10}px;" class="bar" style="background:#4ea8de;"></div>
-          <div style="height:${h.shout * 10}px;" class="bar" style="background:#f44336;"></div>
-          <div class="hour-label">${i}</div>
-        `;
-        chart.appendChild(div);
-      });
+    document.getElementById("hourly-cry").innerHTML = cryBar;
+    document.getElementById("hourly-shout").innerHTML = shoutBar;
+  }
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      loadData();
     }
-  </script>
+  });
+</script>
 </body>
 </html>
